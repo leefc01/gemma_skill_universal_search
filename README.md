@@ -1,6 +1,13 @@
 # 🌐 Universal Voice Search for Gemma
 
 ### Why I Built This
+I was tired of having conversations like:
+```
+Me:  Siri, tell me about [x]?
+Siri:  I found this on the web.
+Me:  I'm driving.  Can you read this aloud?
+Siri:  I found this on the web...
+```
 This skill was born out of a personal need for a "hands-free, eyes-free" information layer. Whether you are on a morning run, navigating local trails, or commuting, this skill transforms your local Gemma model into a live-updating oracle. It is designed to filter the "noise" of the web into punchy, audio-friendly answers that are perfect for text-to-speech.
 
 ### ✨ Features
