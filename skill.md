@@ -1,6 +1,9 @@
 ---
 name: universal_search
-version: 1.2.0
+version: 1.2.2
+description: A univesal search aimed at voice efficiency.
+metadata:
+  homepage: https://github.com/leefc01/gemma_skill_universal_search
 ---
 
 # Universal Search Skill
