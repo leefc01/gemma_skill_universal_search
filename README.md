@@ -1,10 +1,3 @@
-### User Configurable Fields
-In `SKILL.md`, you can modify the following:
-* **DEFAULT_ENGINE:** Set your primary choice (Default: `google`).
-* **VOICE_MAX_LENGTH:** Controls how many characters Gemma should process for audio.
-
-***
-
 # 🌐 Universal Voice Search for Gemma
 
 ### Why I Built This
