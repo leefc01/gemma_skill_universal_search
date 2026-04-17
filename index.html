@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script type="module">
+      import "./index.js";
+
+      // 🔴 Hard bind for safety (do NOT rely on side effects alone)
+      import { universal_search } from "./index.js";
+
+      globalThis.universal_search = universal_search;
+      globalThis.__EDGE_AI_GALLERY_FUNCTIONS__ = {
+        universal_search
+      };
+    </script>
+  </head>
+  <body></body>
+</html>
