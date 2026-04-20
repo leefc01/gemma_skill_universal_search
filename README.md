@@ -261,7 +261,6 @@ You can also test the lower-level skills directly:
 ## Known Issues
 
 - Searches may sometimes hang.  I think that may be related to phone compute / memory.   Testing to narrow down.
-- Responses to the same query may vary
 
 ## Design principles
 
