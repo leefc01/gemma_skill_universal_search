@@ -285,6 +285,11 @@ You can also test the lower-level skills directly:
 | `MAX_CHARS`       | Maximum length of returned text sent to the model. Controls token usage.                      | Optional                   | Integer (recommended: `800–1500`)                                      |
 | `TIMEOUT_MS`      | Timeout for each API request in milliseconds. Prevents hanging calls.                         | Optional                   | Integer (recommended: `3000–5000`)                                     |
 
+## Configuration Notes
+- Leaving an API key as "" or "key" automatically disables that provider.
+- At least one provider should be configured for meaningful results. You know, so you can actually search for someting.
+- Lower MAX_CHARS improves performance on-device but may reduce answer quality.
+- PROVIDER_ORDER strongly impacts result quality and latency
 
 ## Repository layout
 
