@@ -1,213 +1,270 @@
 # Universal Search and Expand Bundle
 
-A phone-safe Google AI Edge Gallery skill bundle that retrieves live information from the web, normalizes the results into a dense text block, and then rewrites that block into a clearer, fuller answer.
+## Overview
 
-The bundle is organized as three skills:
+Universal Search and Expand is a Gemma Edge Gallery skill bundle that retrieves fresh information from external APIs and turns it into a readable, grounded answer.
 
-- `search_and_expand` — orchestrates the two-step flow so the user can ask one prompt and get one final answer.
-- `universal_search` — fetches and normalizes search results from one or more search APIs.
-- `expand_answer` — rewrites the retrieved text into a direct, detailed answer.
+The bundle is designed to work well on phones and other resource-constrained devices. It keeps retrieval and expansion separate so the model can first gather context and then rewrite that context into a clearer response.
 
-## What this bundle does
+Use `search_and_expand` as the main entry point. It is the recommended skill for most users because it chains the retrieval and expansion steps for you.
 
-This bundle is designed for on-device Gemma workflows where tool output needs to stay compact, grounded, and easy to expand. It keeps the retrieval step separate from the writing step, which helps the model produce richer answers without relying on a single large prompt.
+## What the bundle does
 
-Typical behavior:
+The bundle is built around three skills:
 
-1. The user asks a question.
-2. `search_and_expand` calls `universal_search`.
-3. `universal_search` calls one or more search APIs and returns plain text.
-4. `search_and_expand` passes that text to `expand_answer`.
-5. `expand_answer` rewrites the text into a direct, more detailed response.
+1. `search_and_expand`
+2. `universal_search`
+3. `expand_answer`
 
-## Repository structure
+Recommended flow:
 
-```text
-gemma_skill_universal_search/
-├── universal-search/
-│   ├── SKILL.md
-│   └── scripts/
-│       └── index.html
-├── universal-expand-answer/
-│   ├── SKILL.md
-│   └── scripts/
-│       └── index.html
-└── universal-search-and-expand/
-    └── SKILL.md
-```
+- `search_and_expand` calls `universal_search`
+- `universal_search` calls one or more search APIs and returns dense plain text
+- `expand_answer` rewrites that text into a fuller answer
 
-## Deployment architecture
+This design is useful when the model alone produces short, generic answers. By separating search from expansion, the bundle gives the model a better starting point for a grounded response.
 
-```mermaid
-flowchart TD
-    U[User prompt] --> O[search_and_expand]
-    O --> S[universal_search]
-    S --> R[Search API router]
-    R --> SR[Serper]
-    R --> TV[Tavily]
-    R --> BR[Brave Search]
-    R --> WF[Wolfram Alpha]
-    R --> GM[Gemini API]
-    S --> D[Dense plain text result]
-    D --> E[expand_answer]
-    E --> A[Final 2-3 paragraph answer]
-```
+## Skills in this repository
+
+### 1. `search_and_expand`
+
+This is the recommended skill to use.
+
+It orchestrates the workflow and is the user-facing entry point. In normal use, the user only needs to ask one question, and this skill handles the rest.
+
+### 2. `universal_search`
+
+This skill performs the search step.
+
+It supports multiple providers and returns the result as a single dense text block. That output is intentionally simple so the model can use it safely on-device.
+
+### 3. `expand_answer`
+
+This skill performs the rewrite step.
+
+It turns the dense search text into a more readable response, usually with more detail and better flow than the raw search output.
 
 ## Architecture overview
 
-### 1. `universal_search`
+```mermaid
+graph TD
+  U[User Query] --> S[search_and_expand]
+  S --> US[universal_search]
+  US --> R[Provider Router]
 
-This skill is the retrieval layer. It accepts a query, selects a provider, and returns a single dense text block. It is intentionally simple on output: plain text only, no labels, no bullet structure, and no narration.
+  R --> WF[Wolfram Alpha]
+  R --> SP[Serper]
+  R --> TV[Tavily]
+  R --> BR[Brave]
+  R --> GM[Gemini]
 
-### 2. `expand_answer`
+  WF --> M[Merge and Clean]
+  SP --> M
+  TV --> M
+  BR --> M
+  GM --> M
 
-This skill is the writing layer. It takes the dense text block from `universal_search` and rewrites it into a fuller answer. The goal is to produce a direct, factual response in 2–3 paragraphs rather than a short narrated summary.
+  M --> EA[expand_answer]
+  EA --> O[Final Answer]
+```
 
-### 3. `search_and_expand`
+## Execution flow
 
-This skill is the user-facing entry point. It chains the other two skills so the user only types one prompt. It is best thought of as the coordinator, not a tool.
+1. The user asks a question.
+2. `search_and_expand` is triggered.
+3. `search_and_expand` calls `universal_search`.
+4. `universal_search` selects a provider or tries providers in order.
+5. The provider returns search or knowledge text.
+6. The text is cleaned and merged into a dense plain-text block.
+7. `expand_answer` rewrites that block into a fuller answer.
+8. The final answer is returned.
+
+## Deployment structure
+
+The repository is organized as three skill directories.
+
+```text
+skills/
+└── universal_search_bundle/
+    ├── search_and_expand/
+    │   └── SKILL.md
+    ├── universal_search/
+    │   ├── SKILL.md
+    │   └── scripts/
+    │       └── index.html
+    └── expand_answer/
+        ├── SKILL.md
+        └── scripts/
+            └── index.html
+```
 
 ## Prerequisites
 
-Before installing the bundle, make sure you have:
+### Required
 
-- The Google AI Edge Gallery app installed on a compatible Android device.
-- A Gemma-compatible model loaded in the Gallery app.
-- At least one API key for a supported search provider.
-- A code editor for updating the skill files.
-- Optional: `adb` for moving files and importing local models.
+- Google AI Edge Gallery
+- A Gemma model installed in the app
+- At least one supported API key for search or knowledge retrieval
 
-### Notes about device support
+### Recommended
 
-The Google AI Edge Gallery is currently available on Android, with iOS marked as coming soon. Desktop and laptop computers are used for editing, packaging, and sideload workflows rather than running the Gallery app itself.
+- A Serper API key
+- One backup provider key, such as Tavily or Brave
+- A Wolfram Alpha API key for math, computation, and factual lookups
 
-## Installation on a phone
+## Installation on phone
 
-### Option 1: Install the Gallery APK directly
+### Android phone
 
-1. Download the latest Gallery APK from the project releases.
-2. Open the downloaded APK on your phone.
-3. If needed, allow installs from unknown sources.
-4. Complete the install and launch the app.
+1. Install Google AI Edge Gallery on your Android device.
+2. Open the app and load the Gemma model you want to use.
+3. Add the skills from this repository.
+4. Make sure the bundle is installed with the skills in this order:
+   - `search_and_expand`
+   - `universal_search`
+   - `expand_answer`
+5. Configure API keys in `universal_search/scripts/index.html`.
+6. Save the files and refresh or reload the skills in the app.
 
-### Option 2: Install with ADB
+### Phone-specific notes
 
-1. Enable Developer Options and USB debugging on the phone.
-2. Connect the phone to your computer with USB.
-3. Install the APK with `adb install <path-to-apk>`.
-4. Open the Gallery app and confirm that the skills are available.
+- Use `search_and_expand` as the default skill.
+- Keep API keys in the configuration block near the top of `universal_search/scripts/index.html`.
+- Leave debug mode on only when you are testing.
+- Keep the output plain and compact in `universal_search`; let `expand_answer` do the rewriting.
 
-### Importing a local model on phone
+## Installation on desktop or laptop
 
-If you use a local `.litertlm` model:
+The bundle is phone-safe, but it can also be used on desktop or laptop through an Android emulator or any supported local build of the Gallery app.
 
-1. Push the file to the phone’s Downloads folder.
-2. Open Google AI Edge Gallery.
-3. Tap the `+` button on the main screen.
-4. Select the `.litertlm` file.
-5. Confirm the import settings and tap **Import**.
+### Option 1: Android emulator
 
-## Installation on a desktop or laptop
+1. Install an Android emulator on your computer.
+2. Install Google AI Edge Gallery inside the emulator.
+3. Load the Gemma model.
+4. Copy the skill bundle into the Gallery skill directory used by the emulator.
+5. Refresh the skills list.
+6. Open `search_and_expand` and test with a simple query such as `OpenAI`.
 
-A desktop or laptop is the easiest place to develop and maintain the bundle.
+### Option 2: Supported desktop build
 
-### Recommended workflow
+If you are using a desktop build of AI Edge Gallery or a compatible runtime:
 
-1. Clone this repository.
-2. Open the skill folders in a code editor.
-3. Edit the provider keys and provider order in `universal-search/scripts/index.html`.
-4. Keep `universal-expand-answer/scripts/index.html` simple and pass-through.
-5. Update the orchestrator text in `universal-search-and-expand/SKILL.md`.
-6. Copy the skill folders into your Gallery build or bundle location.
-7. Rebuild or reload the Gallery app if you are testing a custom build.
+1. Open the skill directory used by that runtime.
+2. Copy the three skill folders into the correct location.
+3. Confirm that `universal_search/scripts/index.html` is present.
+4. Reload the app or restart the runtime.
+5. Run a test query.
 
-### Suggested local workflow for testing
+### Desktop and laptop notes
 
-- Use your desktop editor for all skill changes.
-- Test one skill at a time before combining them.
-- Keep the retrieval output short and dense.
-- Keep the expansion output direct and factual.
+- Use the same skill order as on phone.
+- Verify that API keys are valid before testing.
+- Start with a simple query such as `debug` if the debug toggle is enabled.
 
-## Supported Search API providers
+## Supported search and knowledge providers
 
-The bundle can be configured to use one or more providers. The recommended pattern is to keep one default provider order and fall back automatically if a provider is missing or fails.
+The bundle supports multiple providers. In auto mode, `universal_search` can try them in sequence and fall back if one is missing, disabled, or unavailable.
 
-| Provider | Best use | Authentication used by the bundle | How to get an API key / App ID | Provider URL |
-|---|---|---|---|---|
-| Serper | Fast general web search | `X-API-KEY` | Create an account and generate a key in the Serper dashboard | https://serper.dev/ |
-| Tavily | Web search and research with strong text results | Bearer API key | Get a free API key from Tavily Docs / dashboard | https://docs.tavily.com/welcome |
-| Brave Search API | Independent web index and reliable fallback search | `X-Subscription-Token` | Sign in or create a Brave Search API account, then create a subscription token | https://brave.com/search/api/ |
-| Wolfram Alpha | Computation, math, and factual knowledge queries | Wolfram App ID | Register a Wolfram ID, then create an App ID in the developer portal | https://developer.wolframalpha.com/access |
-| Gemini API | General-purpose Google AI API fallback | `x-goog-api-key` | Create an API key in Google AI Studio | https://ai.google.dev/gemini-api/docs/api-key |
+| Provider | Description | Free tier limits | API URL |
+| --- | --- | --- | --- |
+| Serper | Google Search API wrapper with strong general-purpose web search coverage. | 2,500 free queries; no credit card required. | https://serper.dev/ |
+| Tavily | Search API designed for AI retrieval and RAG workflows. | Free for students is advertised; the public pricing page also shows a free plan with 1,000 API credits per month. | https://www.tavily.com/pricing |
+| Brave Search | Web search API with web, news, image, and other search results. | Includes $5 in free credits every month. | https://brave.com/search/api/ |
+| Wolfram Alpha | Computational knowledge engine for math, science, and factual queries. | Up to 2,000 non-commercial API calls per month. | https://products.wolframalpha.com/api |
+| Gemini API | Google developer API for model-based retrieval, grounding, and fallback text generation. | Free tier available; quotas vary by model and tier. | https://ai.google.dev/gemini-api/docs/pricing |
 
 ## Recommended provider order
 
-A practical default order is:
+The default order in `universal_search` is designed to balance speed, accuracy, and fallback behavior.
 
-1. Wolfram|Alpha for math and structured knowledge.
-2. Serper for fast general search.
-3. Tavily for web research and stronger synthesis.
-4. Brave Search API as a fallback web index.
-5. Gemini API as a final fallback when you want a broad knowledge-backed response.
+Recommended order:
 
-## How the skill chain works
+1. Wolfram Alpha
+2. Serper
+3. Tavily
+4. Brave
+5. Gemini
 
-### `universal_search`
+This order works well for mixed queries because Wolfram Alpha is strong for numeric and factual lookups, Serper is fast and broad, Tavily is useful for AI-oriented retrieval, Brave is a good fallback search source, and Gemini can act as a final fallback when needed.
 
-This skill:
+## Configuration
 
-- Parses the incoming query.
-- Skips blank or placeholder API keys.
-- Tries providers in the configured order.
-- Returns a single dense text blob.
-- Keeps the output phone-safe and easy for the model to expand.
+Most user-configurable values are grouped near the top of `universal_search/scripts/index.html`.
 
-### `expand_answer`
+Typical configuration values include:
 
-This skill:
+- API keys
+- default provider order
+- debug toggle
+- result limit
+- output length limit
+- timeout settings
 
-- Accepts the text returned from retrieval.
-- Rewrites it into a more complete response.
-- Keeps the tone direct and factual.
-- Avoids meta narration such as “the search returned”.
+## How to use the bundle
 
-### `search_and_expand`
+### Recommended usage
 
-This skill:
+Use `search_and_expand` directly.
 
-- Calls `universal_search`.
-- Passes the returned text into `expand_answer`.
-- Returns only the final answer to the user.
+Example prompts:
+
+- Search for OpenAI
+- Explain quantum computing
+- What is the current status of the project?
+- Compare Serper and Brave Search APIs
+
+### Advanced usage
+
+You can also test the lower-level skills directly:
+
+- `universal_search` if you want to inspect the raw retrieval output
+- `expand_answer` if you want to test the rewrite step on existing text
 
 ## Troubleshooting
 
-### The output is too short
+### The response is too short
 
-- Confirm that `search_and_expand` is the entry skill.
-- Confirm that `expand_answer` is receiving real text from `universal_search`.
-- Try a query that has multiple search results.
-- Make sure at least one provider key is valid.
+- Make sure you are using `search_and_expand`
+- Confirm that `expand_answer` is installed
+- Verify that the model is actually loading the expansion skill
 
-### A provider is skipped
+### No search results appear
 
-- Check whether the API key is blank or still set to the default placeholder value.
-- Confirm that the provider is included in the configured provider order.
-- Confirm that the API key format matches the provider’s docs.
+- Check that at least one API key is valid
+- Make sure the key is not left as the default placeholder value
+- Confirm that the selected provider is enabled
 
-### The app shows a generic narration line
+### The skill does not run
 
-- Keep the retrieval output plain and dense.
-- Keep the expansion step explicit.
-- Avoid adding extra labels or structure inside tool output.
+- Check folder names
+- Confirm that `SKILL.md` is in the correct directory
+- Confirm that `scripts/index.html` is present for the tool-backed skills
+- Reload the app after changing files
 
-## File-level reference
+### Debug mode is still active
 
-- `universal-search/SKILL.md` — retrieval instructions.
-- `universal-search/scripts/index.html` — provider router and search API integration.
-- `universal-expand-answer/SKILL.md` — expansion instructions.
-- `universal-expand-answer/scripts/index.html` — pass-through expansion helper.
-- `universal-search-and-expand/SKILL.md` — single-prompt orchestrator.
+- Set the debug toggle to off in `universal_search/scripts/index.html`
+- Save the file and reload the skill
+
+## Design principles
+
+- Keep retrieval and expansion separate
+- Return a single dense text block from retrieval
+- Avoid labels, bullets, and heavy structure in the tool output
+- Keep the bundle phone-safe
+- Prefer `search_and_expand` for normal use
+
+## Repository layout
+
+This repository contains three skill directories:
+
+- `search_and_expand`
+- `universal_search`
+- `expand_answer`
+
+The repository also includes support files such as `.gitignore`, `.nojekyll`, and the license file.
 
 ## License
 
-MIT License, as defined in the repository.
+MIT License
