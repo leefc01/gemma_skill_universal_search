@@ -1,128 +1,305 @@
 <script>
-  // ============================================================
-  // Universal Search Skill (Gemma Edge Gallery)
-  // ------------------------------------------------------------
-  // Overview:
-  // - Receives a query from the model
-  // - Calls Serper API (Google search)
-  // - Extracts top results
-  // - Returns compact text for on-device model synthesis
-  //
-  // Design goals:
-  // - Keep structure simple (prevents tool failures)
-  // - Provide slightly richer context (titles + snippets)
-  // - Avoid prompt injection or complex formatting
-  // ============================================================
+/* ============================================================
+   Universal Search Skill (Multi-Provider, Phone-Safe)
+   ------------------------------------------------------------
+   Overview:
+   - Routes query across multiple APIs
+   - Falls back automatically if one fails
+   - Returns a single dense text blob for Gemma
 
-  const SERPER_API_KEY = "key"; // 🔐 Set your API key here
+   Design Goals:
+   - Phone-safe (low tokens, simple output)
+   - No structured prompts or labels
+   - Fast fallback between providers
+   - Robust error handling
+   ============================================================ */
 
-  // ============================================================
-  // Main entry point called by Gemma Edge Gallery
-  // ============================================================
-  window["ai_edge_gallery_get_result"] = async (data) => {
-    try {
-      let query = "";
 
-      // --------------------------------------------------------
-      // Input Parsing
-      // Handles:
-      // - JSON string: { "query": "..." }
-      // - Raw string: "search term"
-      // --------------------------------------------------------
-      if (typeof data === "string") {
-        try {
-          const parsed = JSON.parse(data);
+/* ============================================================
+   USER CONFIGURATION (EDIT HERE)
+   ============================================================ */
 
-          if (typeof parsed === "string") {
-            query = parsed;
-          } else if (parsed && typeof parsed === "object") {
-            query = parsed.query || "";
-          }
+const CONFIG = {
+  // --- API KEYS ---
+  SERPER_API_KEY: "key",
+  TAVILY_API_KEY: "key",
+  BRAVE_API_KEY: "key",
+  WOLFRAM_API_KEY: "key",
+  GEMINI_API_KEY: "key",
 
-        } catch {
-          // Fallback: treat as raw string
-          query = data;
-        }
-      }
+  // --- Provider order for AUTO mode ---
+  PROVIDER_ORDER: ["wolfram", "serper", "tavily", "brave", "gemini"],
 
-      query = (query || "").trim();
+  // --- Debug toggle ---
+  ENABLE_DEBUG: true,
 
-      // --------------------------------------------------------
-      // Validation
-      // --------------------------------------------------------
-      if (!query) {
-        return JSON.stringify({
-          result: "No query provided."
-        });
-      }
+  // --- Output control ---
+  MAX_RESULTS: 5,
+  MAX_CHARS: 1400,
 
-      // --------------------------------------------------------
-      // Debug Mode
-      // --------------------------------------------------------
-      if (query.toLowerCase() === "debug") {
-        return JSON.stringify({
-          result: "universal_search debug OK"
-        });
-      }
+  // --- Timeout (ms) ---
+  TIMEOUT_MS: 4000
+};
 
-      // --------------------------------------------------------
-      // Call Serper API
-      // --------------------------------------------------------
-      const resp = await fetch("https://google.serper.dev/search", {
-        method: "POST",
-        headers: {
-          "X-API-KEY": SERPER_API_KEY,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ q: query })
-      });
 
-      if (!resp.ok) {
-        return JSON.stringify({
-          result: `Search failed (HTTP ${resp.status}). Check API key and permissions.`
-        });
-      }
+/* ============================================================
+   HELPER FUNCTIONS
+   ============================================================ */
 
-      const dataJson = await resp.json();
+// Check if API key is usable
+function hasKey(key) {
+  return key && key !== "key" && key.trim() !== "";
+}
 
-      // --------------------------------------------------------
-      // Extract Search Results (MINIMAL SAFE IMPROVEMENT)
-      //
-      // Changes from baseline:
-      // - Increased results from 3 → 5
-      // - + snippet for better context
-      // - Preserved exact structure (prevents breakage)
-      // --------------------------------------------------------
-      const snippets = (dataJson.organic || [])
-        .slice(0, 5)
-        .map(r => (r.snippet || "").trim())
-        .filter(Boolean);
+// Timeout wrapper for fetch
+async function fetchWithTimeout(url, options = {}, timeout = CONFIG.TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
 
-      if (!snippets.length) {
-        return JSON.stringify({ result: "No results found." });
-      }
+  try {
+    const resp = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return resp;
+  } catch {
+    clearTimeout(id);
+    return null;
+  }
+}
 
-      const answer = dataJson.answerBox?.answer || dataJson.answerBox?.snippet || "";
+// Ensure text is meaningful
+function isValidText(text) {
+  return text && text.trim().length > 20;
+}
 
-      // key: plain text, no labels, no structure
-      const merged = [answer, ...snippets].join(" ").replace(/\s+/g, " ").trim();
 
-      // Optional: light cleanup (helps quality a lot)
-      const cleaned = merged
-        .replace(/\s+/g, " ")
-        .replace(/\.\s+\./g, ".");
+/* ============================================================
+   MAIN ENTRY POINT
+   ============================================================ */
 
-      return JSON.stringify({
-        result: cleaned
-      });
+window["ai_edge_gallery_get_result"] = async (data) => {
+  try {
+    const { query, provider } = parseInput(data);
 
-    } catch (e) {
-      // --------------------------------------------------------
-      // Error Handling
-      // --------------------------------------------------------
-      return JSON.stringify({
-        result: "Error: " + e.message
-      });
+    if (!query) {
+      return JSON.stringify({ result: "No query provided." });
     }
+
+    if (CONFIG.ENABLE_DEBUG && query.toLowerCase() === "debug") {
+      return JSON.stringify({ result: "universal_search debug OK" });
+    }
+
+    let text = "";
+
+    if (!provider || provider === "auto") {
+      text = await tryProviders(query);
+    } else {
+      text = await runProvider(provider, query);
+    }
+
+    return JSON.stringify({
+      result: cleanText(text || "No results found.")
+    });
+
+  } catch (e) {
+    return JSON.stringify({
+      result: "Error: " + e.message
+    });
+  }
+};
+
+
+/* ============================================================
+   INPUT PARSING
+   ============================================================ */
+
+function parseInput(data) {
+  let query = "";
+  let provider = "auto";
+
+  if (typeof data === "string") {
+    try {
+      const parsed = JSON.parse(data);
+      if (typeof parsed === "object") {
+        query = parsed.query || "";
+        provider = parsed.provider || "auto";
+      } else {
+        query = parsed;
+      }
+    } catch {
+      query = data;
+    }
+  }
+
+  return {
+    query: (query || "").trim(),
+    provider
   };
+}
+
+
+/* ============================================================
+   ROUTER LOGIC
+   ============================================================ */
+
+async function tryProviders(query) {
+  for (const p of CONFIG.PROVIDER_ORDER) {
+    const result = await runProvider(p, query);
+    if (isValidText(result)) return result;
+  }
+  return null;
+}
+
+async function runProvider(provider, query) {
+  try {
+    switch (provider) {
+      case "wolfram": return await wolframSearch(query);
+      case "serper": return await serperSearch(query);
+      case "tavily": return await tavilySearch(query);
+      case "brave": return await braveSearch(query);
+      case "gemini": return await geminiSearch(query);
+      default: return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+
+/* ============================================================
+   PROVIDER IMPLEMENTATIONS
+   ============================================================ */
+
+async function serperSearch(query) {
+  if (!hasKey(CONFIG.SERPER_API_KEY)) return null;
+
+  const resp = await fetchWithTimeout("https://google.serper.dev/search", {
+    method: "POST",
+    headers: {
+      "X-API-KEY": CONFIG.SERPER_API_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ q: query })
+  });
+
+  if (!resp || !resp.ok) return null;
+
+  const data = await resp.json().catch(() => null);
+  if (!data) return null;
+
+  const snippets = (data.organic || [])
+    .slice(0, CONFIG.MAX_RESULTS)
+    .map(r => (r.snippet || "").trim())
+    .filter(Boolean);
+
+  const answer = data.answerBox?.answer || data.answerBox?.snippet || "";
+
+  return [answer, ...snippets].join(" ");
+}
+
+
+async function tavilySearch(query) {
+  if (!hasKey(CONFIG.TAVILY_API_KEY)) return null;
+
+  const resp = await fetchWithTimeout("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: CONFIG.TAVILY_API_KEY,
+      query,
+      max_results: CONFIG.MAX_RESULTS
+    })
+  });
+
+  if (!resp || !resp.ok) return null;
+
+  const data = await resp.json().catch(() => null);
+  if (!data) return null;
+
+  return (data.results || [])
+    .map(r => r.content || "")
+    .join(" ");
+}
+
+
+async function braveSearch(query) {
+  if (!hasKey(CONFIG.BRAVE_API_KEY)) return null;
+
+  const resp = await fetchWithTimeout(
+    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}`,
+    {
+      headers: {
+        "X-Subscription-Token": CONFIG.BRAVE_API_KEY
+      }
+    }
+  );
+
+  if (!resp || !resp.ok) return null;
+
+  const data = await resp.json().catch(() => null);
+  if (!data) return null;
+
+  return (data.web?.results || [])
+    .slice(0, CONFIG.MAX_RESULTS)
+    .map(r => r.description || "")
+    .join(" ");
+}
+
+
+async function wolframSearch(query) {
+  if (!hasKey(CONFIG.WOLFRAM_API_KEY)) return null;
+
+  const resp = await fetchWithTimeout(
+    `https://api.wolframalpha.com/v1/result?i=${encodeURIComponent(query)}&appid=${CONFIG.WOLFRAM_API_KEY}`
+  );
+
+  if (!resp || !resp.ok) return null;
+
+  return await resp.text().catch(() => null);
+}
+
+
+async function geminiSearch(query) {
+  if (!hasKey(CONFIG.GEMINI_API_KEY)) return null;
+
+  const resp = await fetchWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${CONFIG.GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: query }] }]
+      })
+    },
+    5000
+  );
+
+  if (!resp || !resp.ok) return null;
+
+  const data = await resp.json().catch(() => null);
+  if (!data) return null;
+
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+}
+
+
+/* ============================================================
+   CLEANING + NORMALIZATION
+   ============================================================ */
+
+function cleanText(text) {
+  if (!text) return "";
+
+  const sentences = text.split(". ");
+  const unique = [...new Set(sentences)];
+
+  return unique
+    .join(". ")
+    .replace(/\s+/g, " ")
+    .replace(/\.\s+\./g, ".")
+    .slice(0, CONFIG.MAX_CHARS)
+    .trim();
+}
 </script>

@@ -14,6 +14,8 @@ description: Searches the web and returns a detailed answer.
 ## Critical Rules
 
 - Output ONLY the final answer.
+- Always complete both steps before responding.
+- The first word of your response must be the subject itself.
 - Do NOT add any introductory or concluding sentence.
 - Do NOT describe the steps taken.
 - Do NOT mention searching, expanding, or processing.
@@ -23,4 +25,3 @@ description: Searches the web and returns a detailed answer.
 - Start immediately with the subject.
 - Write in a direct, factual tone.
 - Use 2–3 paragraphs.  List bullets with facts and data.
-- Always complete both steps before responding.
