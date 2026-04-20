@@ -260,7 +260,7 @@ You can also test the lower-level skills directly:
 
 ## Known Issues
 
-- Searches may sometimes hang.  I think that may be related to phone compute / memory.   Testing to narrow down.
+- Searches may sometimes hang.  I think that may be related to phone compute / memory.  Research shows this may be inherent latency from sucessful calls and orchestrating multiple calls.  Could consider firing silmulataneous API calls or setting a global timeout.
 
 ## Design principles
 
