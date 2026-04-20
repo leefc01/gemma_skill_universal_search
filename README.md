@@ -3,9 +3,10 @@
 A phone-safe Google AI Edge Gallery skill bundle that retrieves live information from the web, normalizes the results into a dense text block, and then rewrites that block into a clearer, fuller answer.
 
 The bundle is organized as three skills:
-- `search_and_expand` — orchestrates the two-step flow so the user can ask one prompt and get one final answer.
+
 - `universal_search` — fetches and normalizes search results from one or more search APIs.
 - `expand_answer` — rewrites the retrieved text into a direct, detailed answer.
+- `search_and_expand` — orchestrates the two-step flow so the user can ask one prompt and get one final answer.
 
 ## What this bundle does
 
