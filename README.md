@@ -250,6 +250,19 @@ You can also test the lower-level skills directly:
 - Save the file and reload the skill
 - Personally, I leave it on, just to be able to test to make sure the most basic case is working (i.e., "search for debug").
 
+### Universal Search responses instead of Search and Expand
+
+- Preface your query with Searcn and Expand
+
+### Responses to the same query may vary
+
+- It's a real time search.  Life moves fast.
+
+## Known Issues
+
+- Searches may sometimes hang.  I think that may be related to phone compute / memory.   Testing to narrow down.
+- Responses to the same query may vary
+
 ## Design principles
 
 - Keep retrieval and expansion separate
@@ -257,6 +270,8 @@ You can also test the lower-level skills directly:
 - Avoid labels, bullets, and heavy structure in the tool output
 - Keep the bundle phone-safe
 - Prefer `search_and_expand` for normal use
+
+## Configuration Reference
 
 | Field             | Description                                                                                   | Required                   | Possible Values / Format                                               |
 | ----------------- | --------------------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------------- |
