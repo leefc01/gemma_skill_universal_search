@@ -209,7 +209,9 @@ Use `search_and_expand` directly.
 
 Example prompts:
 
-- Search for OpenAI
+- Search and expand for OpenAI
+- Search and expand for OpenAI revenue
+- Search and expand for 
 - Explain quantum computing
 - What is the current status of the project?
 - Compare Serper and Brave Search APIs
@@ -246,6 +248,7 @@ You can also test the lower-level skills directly:
 
 - Set the debug toggle to off in `universal_search/scripts/index.html`
 - Save the file and reload the skill
+- Personally, I leave it on, just to be able to test to make sure the most basic case is working (i.e., "search for debug").
 
 ## Design principles
 
@@ -254,6 +257,20 @@ You can also test the lower-level skills directly:
 - Avoid labels, bullets, and heavy structure in the tool output
 - Keep the bundle phone-safe
 - Prefer `search_and_expand` for normal use
+
+| Field             | Description                                                                                   | Required                   | Possible Values / Format                                               |
+| ----------------- | --------------------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------------- |
+| `SERPER_API_KEY`  | API key for Serper (Google search wrapper). Primary default provider for general web results. | Optional (but recommended) | String (e.g., `"abc123"`). Leave `""` or `"key"` to disable            |
+| `TAVILY_API_KEY`  | API key for Tavily search. Provides AI-optimized summarized results.                          | Optional                   | String. Leave empty or `"key"` to disable                              |
+| `BRAVE_API_KEY`   | API key for Brave Search API. Independent web index fallback.                                 | Optional                   | String. Leave empty or `"key"` to disable                              |
+| `WOLFRAM_API_KEY` | API key for Wolfram Alpha. Best for math, calculations, and factual queries.                  | Optional                   | String. Leave empty or `"key"` to disable                              |
+| `GEMINI_API_KEY`  | API key for Gemini API. Used as a fallback LLM-based search provider.                         | Optional                   | String. Leave empty or `"key"` to disable                              |
+| `PROVIDER_ORDER`  | Defines the order of search providers used in `auto` mode. First valid result wins.           | Yes                        | Array of strings: `["wolfram", "serper", "tavily", "brave", "gemini"]` |
+| `ENABLE_DEBUG`    | Enables debug mode. Allows `"debug"` query to test skill wiring without API calls.            | Optional                   | `true` or `false`                                                      |
+| `MAX_RESULTS`     | Maximum number of results fetched per provider (when applicable).                             | Optional                   | Integer (recommended: `3–5`)                                           |
+| `MAX_CHARS`       | Maximum length of returned text sent to the model. Controls token usage.                      | Optional                   | Integer (recommended: `800–1500`)                                      |
+| `TIMEOUT_MS`      | Timeout for each API request in milliseconds. Prevents hanging calls.                         | Optional                   | Integer (recommended: `3000–5000`)                                     |
+
 
 ## Repository layout
 
