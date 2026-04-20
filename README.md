@@ -252,7 +252,7 @@ You can also test the lower-level skills directly:
 
 ### Universal Search responses instead of Search and Expand
 
-- Preface your query with Searcn and Expand
+- Preface your query with Search and Expand
 
 ### Responses to the same query may vary
 
