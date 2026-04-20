@@ -1,0 +1,128 @@
+<script>
+  // ============================================================
+  // Universal Search Skill (Gemma Edge Gallery)
+  // ------------------------------------------------------------
+  // Overview:
+  // - Receives a query from the model
+  // - Calls Serper API (Google search)
+  // - Extracts top results
+  // - Returns compact text for on-device model synthesis
+  //
+  // Design goals:
+  // - Keep structure simple (prevents tool failures)
+  // - Provide slightly richer context (titles + snippets)
+  // - Avoid prompt injection or complex formatting
+  // ============================================================
+
+  const SERPER_API_KEY = "key"; // 🔐 Set your API key here
+
+  // ============================================================
+  // Main entry point called by Gemma Edge Gallery
+  // ============================================================
+  window["ai_edge_gallery_get_result"] = async (data) => {
+    try {
+      let query = "";
+
+      // --------------------------------------------------------
+      // Input Parsing
+      // Handles:
+      // - JSON string: { "query": "..." }
+      // - Raw string: "search term"
+      // --------------------------------------------------------
+      if (typeof data === "string") {
+        try {
+          const parsed = JSON.parse(data);
+
+          if (typeof parsed === "string") {
+            query = parsed;
+          } else if (parsed && typeof parsed === "object") {
+            query = parsed.query || "";
+          }
+
+        } catch {
+          // Fallback: treat as raw string
+          query = data;
+        }
+      }
+
+      query = (query || "").trim();
+
+      // --------------------------------------------------------
+      // Validation
+      // --------------------------------------------------------
+      if (!query) {
+        return JSON.stringify({
+          result: "No query provided."
+        });
+      }
+
+      // --------------------------------------------------------
+      // Debug Mode
+      // --------------------------------------------------------
+      if (query.toLowerCase() === "debug") {
+        return JSON.stringify({
+          result: "universal_search debug OK"
+        });
+      }
+
+      // --------------------------------------------------------
+      // Call Serper API
+      // --------------------------------------------------------
+      const resp = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: {
+          "X-API-KEY": SERPER_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ q: query })
+      });
+
+      if (!resp.ok) {
+        return JSON.stringify({
+          result: `Search failed (HTTP ${resp.status}). Check API key and permissions.`
+        });
+      }
+
+      const dataJson = await resp.json();
+
+      // --------------------------------------------------------
+      // Extract Search Results (MINIMAL SAFE IMPROVEMENT)
+      //
+      // Changes from baseline:
+      // - Increased results from 3 → 5
+      // - + snippet for better context
+      // - Preserved exact structure (prevents breakage)
+      // --------------------------------------------------------
+      const snippets = (dataJson.organic || [])
+        .slice(0, 5)
+        .map(r => (r.snippet || "").trim())
+        .filter(Boolean);
+
+      if (!snippets.length) {
+        return JSON.stringify({ result: "No results found." });
+      }
+
+      const answer = dataJson.answerBox?.answer || dataJson.answerBox?.snippet || "";
+
+      // key: plain text, no labels, no structure
+      const merged = [answer, ...snippets].join(" ").replace(/\s+/g, " ").trim();
+
+      // Optional: light cleanup (helps quality a lot)
+      const cleaned = merged
+        .replace(/\s+/g, " ")
+        .replace(/\.\s+\./g, ".");
+
+      return JSON.stringify({
+        result: cleaned
+      });
+
+    } catch (e) {
+      // --------------------------------------------------------
+      // Error Handling
+      // --------------------------------------------------------
+      return JSON.stringify({
+        result: "Error: " + e.message
+      });
+    }
+  };
+</script>
