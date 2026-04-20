@@ -137,7 +137,7 @@ The bundle can be configured to use one or more providers. The recommended patte
 | Serper | Fast general web search | `X-API-KEY` | Create an account and generate a key in the Serper dashboard | https://serper.dev/ |
 | Tavily | Web search and research with strong text results | Bearer API key | Get a free API key from Tavily Docs / dashboard | https://docs.tavily.com/welcome |
 | Brave Search API | Independent web index and reliable fallback search | `X-Subscription-Token` | Sign in or create a Brave Search API account, then create a subscription token | https://brave.com/search/api/ |
-| Wolfram|Alpha | Computation, math, and factual knowledge queries | Wolfram App ID | Register a Wolfram ID, then create an App ID in the developer portal | https://developer.wolframalpha.com/access |
+| Wolfram Alpha | Computation, math, and factual knowledge queries | Wolfram App ID | Register a Wolfram ID, then create an App ID in the developer portal | https://developer.wolframalpha.com/access |
 | Gemini API | General-purpose Google AI API fallback | `x-goog-api-key` | Create an API key in Google AI Studio | https://ai.google.dev/gemini-api/docs/api-key |
 
 ## Recommended provider order
