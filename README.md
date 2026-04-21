@@ -24,6 +24,16 @@ Recommended flow:
 
 This design is useful when the model alone produces short, generic answers. By separating search from expansion, the bundle gives the model a better starting point for a grounded response.
 
+## Why not just 1 skill?  A walk down the development process 
+
+I orignallly tried just 1 skill.  I separted the concerns into various files.  So much more robust in structure, but not in function.  Slimmed down to the flattest possible format.  Then the problem was Gemma completely ignored the skill instructions.  You can try it yourself and send searches to `universal_search` if you are a glutton for narrated meta summaries.
+
+Next, I tried `expand_answer` to elaborate further.  This worked with a few tweaks, but the narrated voice persisted.  Gemma has a way of inferring intent despite what your explicit instructions may be.
+
+Finally, a 3rd level orchestrator.  This got to the best answers to date.  The drawback is potential accumulated latency along with a much more laborious deployment process.
+
+I'd like to make this more elegant.  Still, a good learning process.
+
 ## Skills in this repository
 
 ### 1. `search_and_expand`
